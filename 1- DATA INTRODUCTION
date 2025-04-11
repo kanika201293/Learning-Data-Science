@@ -1,0 +1,78 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+data = pd.read_excel(r'D:\Inttrvu\Session_11_Statistics-20240831T100044Z-001\Session_11_Statistics\titanic3.xls', engine='xlrd')
+
+# working on 3 columns - 'sex', 'age', 'fare'
+
+#checking for missing values
+missingCount_sex = data['sex'].isnull().sum()
+missingCount_age = data['age'].isnull().sum()
+missingCount_fare = data['fare'].isnull().sum()
+
+#replacing NAN values with mode as 'sex' is categorical feature
+data['sex'].fillna(data['sex'].mode(), inplace=True)    
+
+# checking distribution of other two numerical columns to judge replacing value (mean or median)
+# histogram of 'age'
+data['age'].hist(bins=10, edgecolor='black')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.title('Histogram of Age')
+
+# histogram of 'fare'
+data['fare'].hist(bins=20, edgecolor='black')
+plt.xlabel('Fare')
+plt.ylabel('Frequency')
+plt.title('Histogram of Fare')
+
+#replacing NAN values with mean as 'age' is numerical feature with normal distribution
+data['age'].fillna(data['age'].mean(), inplace=True)
+
+#replacing NAN values with median as 'fare' is numerical feature without normal distribution
+data['fare'].fillna(data['fare'].median(), inplace=True)
+
+# finding outliers 'age'
+Q1 = data['age'].quantile(0.25)
+Q3 = data['age'].quantile(0.75)
+IQR = Q3 - Q1;
+
+thresholdLower = Q1 - 1.5*IQR
+thresholdUpper = Q3 + 1.5*IQR
+
+filtered_data = data[(data['age'] >= thresholdLower) & (data['age'] <= thresholdUpper)]
+
+# finding outliers 'fare'
+Q1 = data['fare'].quantile(0.25)
+Q3 = data['fare'].quantile(0.75)
+IQR = Q3 - Q1;
+
+thresholdLower = Q1 - 1.5*IQR
+thresholdUpper = Q3 + 1.5*IQR
+
+filtered_data = data[(data['fare'] >= thresholdLower) & (data['fare'] <= thresholdUpper)]
+
+# data normalisation using min-max as data of 'fare' is not normally distributed
+
+# original data
+minVal = data['age'].min()
+maxVal = data['age'].max()
+data['age'] = (data['age'] - minVal) / (maxVal - minVal)
+
+minVal = data['fare'].min()
+maxVal = data['fare'].max()
+data['fare'] = (data['fare'] - minVal) / (maxVal - minVal)
+
+# filtered data (after removing outliers)
+minVal = filtered_data['age'].min()
+maxVal = filtered_data['age'].max()
+filtered_data['age'] = (filtered_data['age'] - minVal) / (maxVal - minVal)
+
+minVal = filtered_data['fare'].min()
+maxVal = filtered_data['fare'].max()
+filtered_data['fare'] = (filtered_data['fare'] - minVal) / (maxVal - minVal)
+
+# Pearson's correlation between age and fare 
+#range [-1, 1]: -1 = inversely proportional, 1 = proportional, 0 = no relation
+correlation = data['age'].corr(data['fare'], method='pearson')
+correlation_filtered = filtered_data['age'].corr(data['fare'], method='pearson')
