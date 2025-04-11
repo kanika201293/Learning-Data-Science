@@ -1,0 +1,97 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
+from scipy.stats import ttest_ind
+
+data = pd.read_excel(r'D:\Inttrvu\Session_11_Statistics-20240831T100044Z-001\Session_11_Statistics\titanic3.xls', engine='xlrd')
+
+
+### survival of passengers w.r.t. gender (categorical variables) ###
+
+#checking for NAN values
+missing_count = data['sex'].isnull().sum()
+missing_count = data['survived'].isnull().sum()
+
+# no NAN values
+# no outliers in categorical data
+
+# CHI-SQUARE test (pair of categorial variables)
+table = pd.crosstab(data['sex'], data['survived'])  #counts of survivers and non-survivers w.r.t. gender
+chi2, p, dof, expected = chi2_contingency(table)
+
+
+### survival of passengers w.r.t. age (continuous variables) ###
+
+#checking for NAN values
+missing_count = data['age'].isnull().sum() # 20% values are missing
+
+# Method 1: impute all values with mean or median
+
+data_method1 = data.copy()
+
+data_method1['age'].hist(bins=20, edgecolor='black')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.title('Histogram of Age')
+
+#replacing NAN values with mean as 'age' is numerical feature with normal distribution
+data_method1['age'].fillna(data_method1['age'].mean(), inplace=True)
+
+#split the data into two groups
+survival_age = data_method1[data_method1['survived'] == 1]['age']
+non_survival_age = data_method1[data_method1['survived'] == 0]['age']
+
+survival_age_variance = survival_age.var()
+non_survival_age_variance = non_survival_age.var()
+percentageDiff = abs(survival_age_variance - non_survival_age_variance) / ((survival_age_variance + non_survival_age_variance)/2)
+
+# Welch's t-test for unequal variance datasets (~ 26% difference)
+t_stat, p_value_method1 = ttest_ind(survival_age, non_survival_age, equal_var=False)
+
+# Method 2: remove missing value rows
+
+data_method2 = data.dropna(subset=['age'])
+
+#split the data into two groups
+survival_age = data_method2[data_method2['survived'] == 1]['age']
+non_survival_age = data_method2[data_method2['survived'] == 0]['age']
+
+survival_age_variance = survival_age.var()
+non_survival_age_variance = non_survival_age.var()
+percentageDiff = abs(survival_age_variance - non_survival_age_variance) / ((survival_age_variance + non_survival_age_variance)/2)
+
+# Welch's t-test for unequal variance datasets (~ 16% difference)
+t_stat, p_value_method2 = ttest_ind(survival_age, non_survival_age, equal_var=False)
+
+# Method 3: impute each column values with its respective mean or median
+
+data_method3 = data.copy()
+
+#split the data into two groups
+survival_age = data_method3[data_method3['survived'] == 1]['age']
+non_survival_age = data_method3[data_method3['survived'] == 0]['age']
+
+#checking for NAN values
+missingCount_survival_age = survival_age.isnull().sum() # 14.6% values are missing
+missingCount_non_survival_age = non_survival_age.isnull().sum() # 23.75% values are missing
+
+survival_age.hist(bins=20, edgecolor='black')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.title('Histogram of Age')
+
+non_survival_age.hist(bins=20, edgecolor='black')
+plt.xlabel('Age')
+plt.ylabel('Frequency')
+plt.title('Histogram of Age')
+
+#replacing NAN values with mean as 'survival_age' is numerical feature with normal distribution
+survival_age.fillna(survival_age.mean(), inplace=True)
+non_survival_age.fillna(non_survival_age.mean(), inplace=True)
+
+survival_age_variance = survival_age.var()
+non_survival_age_variance = non_survival_age.var()
+percentageDiff = abs(survival_age_variance - non_survival_age_variance) / ((survival_age_variance + non_survival_age_variance)/2)
+
+# Welch's t-test for unequal variance datasets (~ 26.6% difference)
+t_stat, p_value_method3 = ttest_ind(survival_age, non_survival_age, equal_var=False)
