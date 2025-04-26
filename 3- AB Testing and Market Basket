@@ -17,7 +17,7 @@ def nullCount(data):
 ### A/B Testing ###
 
 # data reading
-data = pd.read_csv(r'D:\Inttrvu\Session_13_AB_testing_market_basket-20240828T074158Z-001\Session_13_AB_testing_market_basket\AB_testing_data.csv')
+data = pd.read_csv(r'AB_testing_data.csv')
 
 # checking null data
 null_count = nullCount(data)
