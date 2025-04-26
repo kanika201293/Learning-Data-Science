@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import chi2_contingency
 from scipy.stats import ttest_ind
 
-data = pd.read_excel(r'D:\Inttrvu\Session_11_Statistics-20240831T100044Z-001\Session_11_Statistics\titanic3.xls', engine='xlrd')
+data = pd.read_excel(r'D:\titanic3.xls', engine='xlrd')
 
 
 ### survival of passengers w.r.t. gender (categorical variables) ###
