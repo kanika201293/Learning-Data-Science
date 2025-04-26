@@ -1,0 +1,76 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+### A/B Testing ###
+
+# data reading
+data = pd.read_csv(r'D:\Inttrvu\Session_13_AB_testing_market_basket-20240828T074158Z-001\Session_13_AB_testing_market_basket\AB_testing_data.csv')
+
+# checking null data
+null_count = nullCount(data)
+
+#checking variance
+variance_A = data['Conversion fraction A'].var()
+variance_B = data['Conversion fraction B'].var()
+percentageDiff = abs(variance_A - variance_B) / ((variance_A + variance_B)/2) # 18.5 %
+
+# applying Welch's t-test for unequal variance datasets (~ 18.5% difference)
+from scipy.stats import ttest_ind
+t_stat, p_value = ttest_ind(data['Conversion fraction A'], data['Conversion fraction B'], equal_var=False)
+
+
+
+### Market Basket Analysis ###
+
+# reading data
+data = pd.read_csv(r'D:\Inttrvu\Session_13_AB_testing_market_basket-20240828T074158Z-001\Session_13_AB_testing_market_basket\market_baskets_data.csv')
+
+# creating basket which is list of lists
+r = data.shape[0]
+c = data.shape[1]
+
+basket = []
+for i in range(r):
+    item_list = []
+    for j in range(c):
+        value = data.iat[i, j]
+        if pd.notna(value):
+            item_list.append(str(value))
+    basket.append(item_list)
+            
+# Apriori Algorithm
+from apyori import apriori
+rules = apriori(basket, min_support=0.0001, min_confidence=0, min_lift=1)
+result = list(rules)
+
+# create table of LHS, RHS, support, confidence, lift
+n = len(result)
+
+summary = []
+for i in range(n):
+    LHS = list(result[i][2][0][0])[0]
+    RHS = list(result[i][2][0][1])[0]
+    support = result[i][1]
+    confidence = result[i][2][0][2]
+    lift = result[i][2][0][3]
+    item_summary = [LHS, RHS, support, confidence, lift]
+    summary.append(item_summary)
+    
+summary_df = pd.DataFrame(summary)
+
+max_support = max(sublist[2] for sublist in summary)
+max_confidence = max(sublist[3] for sublist in summary)
+max_lift = max(sublist[4] for sublist in summary)
