@@ -1,0 +1,85 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+def imputeMissVal(data, null_count, numeric_cols, string_cols):    # numericalVar: median, cateoricalVar: mode
+    
+    for index, rows in null_count.iterrows():
+        
+        if rows[0] < 1:    # i.e. nan values is = 0 (treating float value)
+            continue
+        
+        if index in numeric_cols:
+            data[index].fillna(data[index].median(), inplace=True) 
+            
+        elif index in string_cols:
+            data[index].fillna(data[index].mode(), inplace=True) 
+            
+def data_to_features(data, null_count, string_cols):
+    
+    for index, rows in null_count.iterrows():
+        
+        if index in string_cols:
+            le = LabelEncoder()
+            data[index] = le.fit_transform(data[index])        
+
+# reading data    
+data = pd.read_csv("Housing.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+# imputing missing values
+imputeMissVal(data, null_count, numeric_cols, string_cols)
+
+# data to features
+data_to_features(data, null_count, string_cols)
+
+# Train Test Split
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('price') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('price') #lables in test data
+x_test = df_test # features in test data
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)
+
+# Linear Regression
+from sklearn.linear_model import LinearRegression
+
+lr_model = LinearRegression()
+lr_model.fit(x_train, y_train) # training
+
+# Model Evaluation
+y_train_pred = lr_model.predict(x_train)
+y_test_pred = lr_model.predict(x_test)
+
+from sklearn.metrics import r2_score,mean_absolute_error,mean_absolute_percentage_error
+r2_score_train = r2_score(y_train, y_train_pred)
+r2_score_test = r2_score(y_test, y_test_pred)
