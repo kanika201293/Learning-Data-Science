@@ -1,0 +1,83 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr 25 14:36:05 2025
+
+@author: Lenovo
+"""
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+def imputeMissVal(data, null_count):    # numericalVar: median, cateoricalVar: mode
+    
+    for index, rows in null_count.iterrows():
+        
+        if rows[0] < 1:    # i.e. = 0 (treating float value)
+            continue
+        
+        print(index)
+        data[index].fillna(data[index].median(), inplace=True)      
+
+# reading data    
+data = pd.read_csv("dataset.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+# imputing missing values
+imputeMissVal(data, null_count)
+    
+# Train Test Split
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('TenYearCHD') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('TenYearCHD') #labels in test data
+x_test = df_test # features in test data
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)
+
+# Logistic Regression
+from sklearn.linear_model import LogisticRegression
+
+lr = LogisticRegression(class_weight=None)
+model = lr.fit(x_train, y_train) # model training
+y_predict = lr.predict(x_test) # create predicted o/p 0/1. This comand will give the predicted labels
+
+# Evaluation
+from sklearn.metrics import confusion_matrix,accuracy_score,roc_curve,classification_report
+print(classification_report(y_test,y_predict))
+print(confusion_matrix(y_test, y_predict))
+
+# Improving Model using weights
+weight = {0:1, 1:5} 
+lr = LogisticRegression(class_weight=weight)
+model = lr.fit(x_train, y_train) # model training
+y_predict = lr.predict(x_test) # create predicted o/p 0/1. This comand will give the predicted labels
+
+# Evaluation
+from sklearn.metrics import confusion_matrix,accuracy_score,roc_curve,classification_report
+print(classification_report(y_test,y_predict))
+print(confusion_matrix(y_test, y_predict))
