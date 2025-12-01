@@ -1,0 +1,71 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May 21 19:01:12 2025
+
+@author: Lenovo
+"""
+
+import matplotlib.pyplot as plt
+from sklearn.cluster import DBSCAN, KMeans
+from sklearn.metrics import silhouette_score
+
+def plot_clusters(X, labels, title):
+    plt.scatter(X[:, 0], X[:, 1], c=labels, cmap='viridis', s=30)
+    plt.title(title)
+    plt.show()
+    
+def kmeans_clustering(x_train):
+    wcss = [] 
+
+    for i in range(2, 30): 
+        kmeans = KMeans(n_clusters = i, init = 'k-means++', n_init= 'auto', random_state = 42)
+        kmeans.fit(x_train) 
+        wcss.append(kmeans.inertia_)
+        
+    K = range(2, 30)
+    plt.plot(K, wcss, 'bx-')
+    plt.xlabel('Values of K')
+    plt.ylabel('Within cluster Sum of Squared distances')
+    plt.title('The Elbow Method')
+    plt.show()
+    
+    return kmeans
+    
+def Silhouette_Score(range_start, range_end, x_train):
+    silh_score = [] 
+
+    for i in range(range_start, range_end): 
+        kmeans = KMeans(n_clusters = i, init = 'k-means++', n_init= 'auto', random_state = 42)
+        kmeans.fit(x_train) 
+        silh_score.append(silhouette_score(x_train, kmeans.labels_))
+        
+    K = range(range_start, range_end)
+    plt.plot(K, silh_score, 'bx-')
+    plt.xlabel('Values of K')
+    plt.ylabel('Silhouette Score')
+    plt.title('The Silhouette Score Method')
+    plt.show()
+
+# Generate two datasets: one with blobs, another with non-linear moon shapes
+from sklearn.datasets import make_moons, make_blobs
+X1, _ = make_blobs(n_samples=300, centers=3, random_state=42, cluster_std=1.0)
+X2, _ = make_moons(n_samples=300, noise=0.01, random_state=42)
+
+# K-Means Clustering
+kmeans_clustering(X1)
+Silhouette_Score(2, 5, X1)
+kmeans1 = KMeans(n_clusters = 3, random_state=0, n_init="auto").fit(X1)
+
+kmeans_clustering(X2)
+Silhouette_Score(2, 15, X2)
+kmeans2 = KMeans(n_clusters = 8, random_state=0, n_init="auto").fit(X2)
+
+# DBSCAN Clustering
+dbscan1 = DBSCAN(eps=1.2, min_samples=5).fit(X1)
+dbscan2 = DBSCAN(eps=0.2, min_samples=5).fit(X2)
+
+plot_clusters(X1, kmeans1.labels_, "KMeans: Blob Data")
+plot_clusters(X1, dbscan1.labels_, "DBSCAN: Blob Data")
+
+plot_clusters(X2, kmeans2.labels_, "KMeans: Blob Data")
+plot_clusters(X2, dbscan2.labels_, "DBSCAN: Blob Data")
