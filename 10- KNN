@@ -1,0 +1,266 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed May 21 19:01:12 2025
+
+@author: Lenovo
+"""
+
+import pandas as pd
+from sklearn import neighbors
+from sklearn.metrics import mean_squared_error
+from math import sqrt
+from sklearn.metrics import r2_score
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+def imputeMissVal(data, null_count, numeric_cols, string_cols):    # numericalVar: median, cateoricalVar: mode
+    
+    for index, rows in null_count.iterrows():
+        
+        if rows[0] < 1:    # i.e. nan values is = 0 (treating float value)
+            continue
+        
+        if index in numeric_cols:
+            data[index].fillna(data[index].median(), inplace=True) 
+            
+        elif index in string_cols:
+            data[index].fillna(data[index].mode(), inplace=True) 
+            
+def one_hot_encode_columns(data, columns):
+    """
+    One-hot encodes specified columns in a DataFrame (with drop_first=True) and returns the updated DataFrame.
+    
+    Parameters:
+    - data (pd.DataFrame): The input DataFrame.
+    - columns (list): List of column names to one-hot encode.
+    
+    Returns:
+    - pd.DataFrame: The transformed DataFrame with one-hot encoded columns.
+    """
+    data = data.copy()
+    dummies_list = []
+    
+    for col in columns:
+        if col in data.columns:
+            dummies = pd.get_dummies(data[col], prefix=col, drop_first=True)
+            dummies_list.append(dummies)
+            data = data.drop(col, axis=1)
+    
+    if dummies_list:
+        data = pd.concat([data] + dummies_list, axis=1)
+    
+    return data
+
+def ordinal_encode_columns(data, columns, order_dict):
+    """
+    Ordinally encodes specified columns in a DataFrame using provided category orders.
+
+    Parameters:
+    - data (pd.DataFrame): The input DataFrame.
+    - columns (list): List of column names to encode.
+    - order_dict (dict): A dictionary where keys are column names and values are lists defining category order.
+
+    Returns:
+    - pd.DataFrame: The transformed DataFrame with ordinally encoded columns.
+    """
+    data = data.copy()
+    
+    for col in columns:
+        if col in data.columns and col in order_dict:
+            category_order = order_dict[col]
+            cat_type = pd.api.types.CategoricalDtype(categories=category_order, ordered=True)
+            data[col] = data[col].astype(cat_type).cat.codes
+    
+    return data
+
+def KNN_regression(x_train, y_train, x_test, y_test):
+    
+    rmse_val = [] #to store rmse values for different k
+    k_val = []
+    r_squared_score = []
+    
+    for K in range(7):
+        K = K+1
+        model = neighbors.KNeighborsRegressor(n_neighbors = K, weights="distance") 
+        model.fit(x_train, y_train)  #just saving the data - no training as such
+        y_test_pred=model.predict(x_test) #make prediction on test set
+        error = sqrt(mean_squared_error(y_test,y_test_pred)) #calculate rmse
+        rmse_val.append(error) #store rmse values
+        r2_val = r2_score(y_test, y_test_pred)
+        r_squared_score.append(r2_val)
+        k_val.append(K)
+
+    plt.plot(k_val, rmse_val, 'bx-')
+    plt.xlabel('Values of K')
+    plt.ylabel('RMSE')
+    plt.title('RMSE for different values of K')
+    plt.show()
+    
+def KNN_clssification(x_train, y_train, x_test, y_test, datatype):
+    
+    val = [] #to store rmse values for different k
+    k_val = []
+    
+    for K in range(7):
+        K = K+1
+        model = neighbors.KNeighborsClassifier(n_neighbors = K, weights="distance") 
+        model.fit(x_train, y_train)  #just saving the data - no training as such
+        y_test_pred=model.predict(x_test) #make prediction on test set
+        '''error = sqrt(mean_squared_error(y_test,y_test_pred)) #calculate rmse
+        rmse_val.append(error) #store rmse values
+        r2_val = r2_score(y_test, y_test_pred)
+        r_squared_score.append(r2_val)'''
+        cm = confusion_matrix(y_test, y_test_pred)
+        TP = cm[0][0]
+        FP = cm[1][0]
+        TN = cm[1][1]
+        FN = cm[0][1]
+        P = (y_test == 0).sum()
+        N = (y_test == 1).sum()
+        
+        if datatype == 1: # scewed data
+            precision = TP/(TP+FP)
+            recall = TP/P
+            F1score = 2*precision*recall / (precision+recall);
+            val.append(F1score)
+        
+        if datatype == 0: # unscewed
+            accuracy = (TP+TN) / (P+N)
+            val.append(accuracy)
+            
+        k_val.append(K)
+
+    plt.plot(k_val, val, 'bx-')
+    plt.xlabel('Values of K')
+    if datatype == 1: # scewed data
+        plt.ylabel('F1 score')
+    if datatype == 0: # unscewed data
+        plt.ylabel('Accuracy')
+    #plt.title('RMSE for different values of K')
+    plt.show()
+
+
+''' KNN for Regression'''
+
+# reading data    
+data = pd.read_csv(r"D:\Inttrvu\Session_22_KNN-20241009T070424Z-001\Session_22_KNN\Aug'24\insurance.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+# removing non required columns
+'''remove_cols = ['no_of_previous_cancellations', 'no_of_previous_bookings_not_canceled', 'booking_status', 'Booking_ID', 'arrival_year', 'arrival_month', 'arrival_date']
+numeric_cols = [col for col in numeric_cols if col not in remove_cols]
+string_cols = [col for col in string_cols if col not in remove_cols]
+
+data = data[numeric_cols + string_cols]'''
+
+# One-hot encode
+cols_to_one_hot_encode = ['sex', 'region']
+data = one_hot_encode_columns(data, cols_to_one_hot_encode)
+
+# ordinal encode
+cols_to_ordinal_encode = ['smoker']
+unique_values = {col: data[col].unique() for col in cols_to_ordinal_encode}
+
+order_dict = {
+    'smoker': ['no', 'yes']
+}
+
+data = ordinal_encode_columns(data, cols_to_ordinal_encode, order_dict)
+
+# Train Test Split
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('charges') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('charges') #lables in test data
+x_test = df_test # features in test data
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)
+
+# Train and Evaluate
+KNN_regression(x_train, y_train, x_test, y_test) # value of K with min RSME
+
+model = neighbors.KNeighborsRegressor(n_neighbors = 5, weights="distance")
+model.fit(x_train, y_train)  #fit the model
+y_test_pred=model.predict(x_test) #make prediction on test set
+error = sqrt(mean_squared_error(y_test,y_test_pred)) #calculate rmse
+r2_val = r2_score(y_test, y_test_pred)
+
+
+''' KNN for Classification '''
+
+# reading data    
+data = pd.read_csv(r"dataset.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+# imputing missing values
+imputeMissVal(data, null_count, numeric_cols, string_cols)
+
+# analysing data
+counts = data["TenYearCHD"].value_counts() # scewed data here
+datatype = 1    # 0: unscewed, 1: scewed
+    
+# Train Test Split
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('TenYearCHD') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('TenYearCHD') #labels in test data
+x_test = df_test # features in test data
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)
+
+# Train and Evaluate
+KNN_clssification(x_train, y_train, x_test, y_test, datatype) # value of K with min RSME
+
+model = neighbors.KNeighborsClassifier(n_neighbors = 5, weights="distance")
+model.fit(x_train, y_train)  #fit the model
+y_test_pred=model.predict(x_test) #make prediction on test set
+
+cm = confusion_matrix(y_test, y_test_pred)
+TP = cm[0][0]
+FP = cm[1][0]
+P = (y_test == 0).sum()
+
+precision = TP/(TP+FP)
+recall = TP/P
+F1score = 2*precision*recall / (precision+recall);
