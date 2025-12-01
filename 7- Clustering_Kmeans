@@ -1,0 +1,117 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue May 20 18:09:06 2025
+
+@author: Lenovo
+"""
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+def one_hot_encode_columns(data, columns):
+    """
+    One-hot encodes specified columns in a DataFrame (with drop_first=True) and returns the updated DataFrame.
+    
+    Parameters:
+    - data (pd.DataFrame): The input DataFrame.
+    - columns (list): List of column names to one-hot encode.
+    
+    Returns:
+    - pd.DataFrame: The transformed DataFrame with one-hot encoded columns.
+    """
+    data = data.copy()
+    dummies_list = []
+    
+    for col in columns:
+        if col in data.columns:
+            dummies = pd.get_dummies(data[col], prefix=col, drop_first=True)
+            dummies_list.append(dummies)
+            data = data.drop(col, axis=1)
+    
+    if dummies_list:
+        data = pd.concat([data] + dummies_list, axis=1)
+    
+    return data
+
+# reading data    
+data = pd.read_csv(r"Hotel Reservations.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+# removing non required columns
+remove_cols = ['no_of_previous_cancellations', 'no_of_previous_bookings_not_canceled', 'booking_status', 'Booking_ID', 'arrival_year', 'arrival_month', 'arrival_date']
+numeric_cols = [col for col in numeric_cols if col not in remove_cols]
+string_cols = [col for col in string_cols if col not in remove_cols]
+
+data = data[numeric_cols + string_cols]
+
+# One-hot encode
+cols_to_one_hot_encode = ['type_of_meal_plan', 'room_type_reserved', 'market_segment_type']
+data = one_hot_encode_columns(data, cols_to_one_hot_encode)
+
+# ordinal encode
+cols_to_ordinal_encode = []
+unique_values = {col: data[col].unique() for col in cols_to_ordinal_encode}
+
+order_dict = {}
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+x_train = data.copy()
+x_train = scaler.fit_transform(x_train)
+
+# Apply kmeans clustering using K means ++ for k ranging from 2 to 10
+from sklearn.cluster import KMeans
+wcss = [] 
+
+for i in range(2, 30): 
+    kmeans = KMeans(n_clusters = i, init = 'k-means++', n_init= 'auto', random_state = 42)
+    kmeans.fit(x_train) 
+    wcss.append(kmeans.inertia_)
+    
+K = range(2, 30)
+plt.plot(K, wcss, 'bx-')
+plt.xlabel('Values of K')
+plt.ylabel('Within cluster Sum of Squared distances')
+plt.title('The Elbow Method')
+plt.show()
+
+# silhouette_score
+from sklearn.metrics import silhouette_score
+silh_score = [] 
+
+for i in range(5, 15): 
+    kmeans = KMeans(n_clusters = i, init = 'k-means++', n_init= 'auto', random_state = 42)
+    kmeans.fit(x_train) 
+    silh_score.append(silhouette_score(x_train, kmeans.labels_))
+    
+K = range(5, 15)
+plt.plot(K, silh_score, 'bx-')
+plt.xlabel('Values of K')
+plt.ylabel('Silhouette Score')
+plt.title('The Silhouette Score Method')
+plt.show()
+
+kmeans = KMeans(n_clusters = 9, random_state=0, n_init="auto").fit(x_train)
+data['cluster_labels'] = kmeans.labels_
+
+silhouette_score(x_train, kmeans.labels_)
