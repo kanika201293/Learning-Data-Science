@@ -1,0 +1,78 @@
+import pandas as pd
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+# reading data    
+data = pd.read_csv(r"wine_data.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+'''
+# removing non required columns
+remove_cols = ['CLIENTNUM']
+numeric_cols = [col for col in numeric_cols if col not in remove_cols]
+string_cols = [col for col in string_cols if col not in remove_cols]
+
+data = data[numeric_cols + string_cols]
+
+# One-hot encode
+cols_to_one_hot_encode = ['Attrition_Flag', 'Gender', 'Marital_Status', 'Card_Category']
+data = one_hot_encode_columns(data, cols_to_one_hot_encode)
+
+# ordinal encode
+cols_to_ordinal_encode = ['Education_Level', 'Income_Category']
+unique_values = {col: data[col].unique() for col in cols_to_ordinal_encode}
+
+unknown_count = (data['Education_Level'] == 'Unknown').sum()
+unknown_count = (data['Income_Category'] == 'Unknown').sum()
+
+order_dict = {
+    'Education_Level': ['Uneducated', 'Unknown', 'High School', 'College', 'Graduate', 'Post-Graduate', 'Doctorate'],
+    'Income_Category': ['Less than $40K', '$40K - $60K', '$60K - $80K', '$80K - $120K', '$120K +']
+}
+
+data = ordinal_encode_columns(data, cols_to_ordinal_encode, order_dict)
+'''
+
+# Train Test Split (unsupervised learning)
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('Customer_Segment') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('Customer_Segment') #lables in test data
+x_test = df_test # features in test data
+
+# data scaling
+from sklearn.preprocessing import MinMaxScaler
+
+scaler = MinMaxScaler()
+
+x_train = scaler.fit_transform(x_train)
+x_test = scaler.transform(x_test)
+
+# Apply PCA and select number of components
+from sklearn.decomposition import PCA
+ 
+pca = PCA(n_components = 5)
+ 
+x_train_pca = pca.fit_transform(x_train)
+x_test_pca = pca.transform(x_test)
+
+total_explained_var_ratio = pca.explained_variance_ratio_.sum()
