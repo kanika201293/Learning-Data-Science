@@ -1,0 +1,114 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 11 17:03:06 2025
+
+@author: Lenovo
+"""
+import pandas as pd
+
+def nullCount(data):
+    
+    null_count = data.isnull().sum()
+    null_percentage = (data.isnull().sum() / len(data)) * 100
+
+    # Combine into a single DataFrame
+    null_summary = pd.DataFrame({
+        'Null_Count': null_count,
+        'Null_Percentage': null_percentage
+    })
+    
+    return null_summary
+
+def ordinal_encode_columns(data, columns, order_dict):
+    """
+    Ordinally encodes specified columns in a DataFrame using provided category orders.
+
+    Parameters:
+    - data (pd.DataFrame): The input DataFrame.
+    - columns (list): List of column names to encode.
+    - order_dict (dict): A dictionary where keys are column names and values are lists defining category order.
+
+    Returns:
+    - pd.DataFrame: The transformed DataFrame with ordinally encoded columns.
+    """
+    data = data.copy()
+    
+    for col in columns:
+        if col in data.columns and col in order_dict:
+            category_order = order_dict[col]
+            cat_type = pd.api.types.CategoricalDtype(categories=category_order, ordered=True)
+            data[col] = data[col].astype(cat_type).cat.codes
+    
+    return data
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix,accuracy_score,roc_curve,classification_report
+
+def fit_and_evaluate_model(x_train, x_test, y_train, y_test,max_depth=5,min_samples_split=0.01,max_features=0.8,max_samples=0.8):
+    random_forest =  RandomForestClassifier(random_state=0,\
+                                            max_depth=max_depth,\
+                                            min_samples_split=min_samples_split,\
+                                            max_features=max_features,
+                                            max_samples=max_samples)
+
+    model = random_forest.fit(x_train, y_train)
+    random_forest_predict = model.predict(x_test)
+    random_forest_conf_matrix = confusion_matrix(y_test, random_forest_predict)
+    random_forest_acc_score = accuracy_score(y_test, random_forest_predict)
+    print("confusion matrix")
+    print(random_forest_conf_matrix)
+    print("\n")
+    print("Accuracy of Random Forest:",random_forest_acc_score*100,'\n')
+    print(classification_report(y_test,random_forest_predict))
+    return model
+
+# reading data    
+data = pd.read_csv(r"cars_data.csv")
+
+# checking null data
+null_count = nullCount(data)
+
+numeric_cols = data.select_dtypes(exclude=['object']).columns.tolist()
+string_cols = data.select_dtypes(include=['object']).columns.tolist()
+
+'''
+# removing non required columns
+remove_cols = ['CLIENTNUM']
+numeric_cols = [col for col in numeric_cols if col not in remove_cols]
+string_cols = [col for col in string_cols if col not in remove_cols]
+
+data = data[numeric_cols + string_cols]
+'''
+
+# One-hot encode
+#cols_to_one_hot_encode = ['buying', 'Gender', 'Marital_Status', 'Card_Category']
+#data = one_hot_encode_columns(data, cols_to_one_hot_encode)
+
+# ordinal encode
+cols_to_ordinal_encode = ['buying', 'maint', 'doors', 'persons', 'lug_boot', 'safety', 'class']
+unique_values = {col: data[col].unique() for col in cols_to_ordinal_encode}
+
+order_dict = {
+    'buying': ['low', 'med', 'high', 'vhigh'],
+    'maint': ['low', 'med', 'high', 'vhigh'],
+    'doors': ['2', '3', '4', '5more'],
+    'persons': ['2', '4', 'more'],
+    'lug_boot': ['small', 'med', 'big'],
+    'safety': ['low', 'med', 'high'],
+    'class': ['unacc', 'acc', 'vgood', 'good']
+}
+
+data = ordinal_encode_columns(data, cols_to_ordinal_encode, order_dict)
+
+# Train Test Split (unsupervised learning)
+from sklearn.model_selection import train_test_split
+df_train, df_test = train_test_split(data, train_size = 0.8, test_size = 0.2, random_state = 100)
+
+y_train = df_train.pop('class') #labels in training data
+x_train = df_train # features in training data
+
+y_test = df_test.pop('class') #lables in test data
+x_test = df_test # features in test data
+
+# Fit and evaluate model
+model = fit_and_evaluate_model(x_train, x_test, y_train, y_test)
